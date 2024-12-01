@@ -4,13 +4,11 @@ struct Day01: AdventDay {
     var data: String
     
     var entities: ([Int], [Int]) {
-        // Split by newlines and parse each line into two numbers
         let parts = data.split(separator: "\n").map {
             $0.split(separator: " ")
              .compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
         }
         
-        // Filter out any invalid lines and safely extract left and right numbers
         let validParts = parts.filter { $0.count == 2 }
         let leftList = validParts.map { $0[0] }
         let rightList = validParts.map { $0[1] }
@@ -33,7 +31,20 @@ struct Day01: AdventDay {
     }
     
     func part2() -> Any {
-        // Placeholder for part 2
-        return 0
+        let (leftList, rightList) = entities
+        
+        // Create a frequency dictionary for the right list
+        var rightFrequency: [Int: Int] = [:]
+        for num in rightList {
+            rightFrequency[num, default: 0] += 1
+        }
+        
+        // Calculate similarity score
+        let similarityScore = leftList.reduce(0) { score, leftNum in
+            // For each number in left list, multiply it by its frequency in right list
+            score + (leftNum * (rightFrequency[leftNum] ?? 0))
+        }
+        
+        return similarityScore
     }
 }
