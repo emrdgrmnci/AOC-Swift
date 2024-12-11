@@ -1,19 +1,20 @@
-import XCTest
+import Testing
 import Foundation
 @testable import AdventOfCode
 
-class Day11Tests: XCTestCase {
-    let data: String = """
-                      0 5601550 3914 852 50706 68 6 645371
+struct Day11Tests {
+  let data: String = """
+                      125 17
                       """
-    
-    func testPart1() {
-        let challenge = Day11(data: data)
-        XCTAssertEqual(String(describing: challenge.part1()), "189092")
-    }
-    
-    func testPart2() {
-        let challenge = Day11(data: data)
-        XCTAssertEqual(String(describing: challenge.part2()), "224869647102559")
-    }
+  @Test
+  func testPart1() {
+    let challenge = Day11(data: data)
+    #expect(String(describing: challenge.part1()) == "55312")
+  }
+  
+  @Test
+  func testPart2() {
+    let challenge = Day11(data: data)
+    #expect(String(describing: challenge.part2()) == "65601038650482")
+  }
 }
