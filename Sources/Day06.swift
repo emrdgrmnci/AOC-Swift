@@ -24,6 +24,10 @@ struct Day06: AdventDay {
     func turnRight() -> Direction {
       Direction(dx: -dy, dy: dx)
     }
+    
+    func turnLeft() -> Direction {
+      Direction(dx: dy, dy: -dx)
+    }
   }
   
   func getStart() -> (pos: Position, dir: Direction)? {
@@ -51,16 +55,42 @@ struct Day06: AdventDay {
     var visited = Set([start])
     var pos = start
     var dir = startDir
+    var maxSteps = map.count * map[0].count * 4 // Maximum possible steps before declaring infinite loop
+    var currentSteps = 0
+    var stuckCount = 0
     
-    while isValid(pos) {
+    while currentSteps < maxSteps {
+      currentSteps += 1
       let next = pos.next(dir)
+      
+      // Check if we're stuck
       if !isValid(next) || map[next.y][next.x] == "#" {
+        stuckCount += 1
+        if stuckCount >= 4 { // We've tried all directions
+          break
+        }
         dir = dir.turnRight()
-      } else {
-        pos = next
-        visited.insert(pos)
+        continue
+      }
+      
+      // Reset stuck count when we move
+      stuckCount = 0
+      pos = next
+      visited.insert(pos)
+      
+      // Try to turn left when possible (following left wall)
+      let leftDir = dir.turnLeft()
+      let leftPos = pos.next(leftDir)
+      if isValid(leftPos) && map[leftPos.y][leftPos.x] != "#" {
+        dir = leftDir
+      }
+      
+      // Additional termination check: if we're back at start and have covered some ground
+      if pos == start && visited.count > 1 && currentSteps > 4 {
+        break
       }
     }
+    
     return visited
   }
   
@@ -78,11 +108,13 @@ struct Day06: AdventDay {
       var modMap = map
       modMap[pos.y][pos.x] = "#"
       
-      let newDay = Day06(data: String(modMap.map { String($0) }.joined(separator: "\n")))
-      if newDay.simulate().count < visited.count {
+      let newDay = Day06(data: modMap.map { String($0) }.joined(separator: "\n"))
+      let newVisited = newDay.simulate().count
+      if newVisited < visited.count {
         result += 1
       }
     }
+    
     return result
   }
 }

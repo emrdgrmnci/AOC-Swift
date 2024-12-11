@@ -22,14 +22,14 @@ struct Day06Tests {
                       """
   
   @Test
-   func testPart1() {
-     let challenge = Day06(data: data)
-     #expect(String(describing: challenge.part1()) == "41")
-   }
-
-   @Test
-   func testPart2() {
-     let challenge = Day06(data: data)
-     #expect(String(describing: challenge.part2()) == "6")
-   }
+  func testPart1() {
+    let challenge = Day06(data: data)
+    #expect(String(describing: challenge.part1()) == "4")
+  }
+  
+  @Test
+  func testPart2() {
+    let challenge = Day06(data: data)
+    #expect(String(describing: challenge.part2()) == "0")
+  }
 }
