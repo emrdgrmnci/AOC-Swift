@@ -1,11 +1,11 @@
 import Algorithms
 import Foundation
 
-struct Position: Hashable {
+struct Positions: Hashable {
   let x: Int
   let y: Int
   
-  func distance(to other: Position) -> Double {
+  func distance(to other: Positions) -> Double {
     let dx = Double(other.x - x)
     let dy = Double(other.y - y)
     return sqrt(dx * dx + dy * dy)
@@ -13,7 +13,7 @@ struct Position: Hashable {
 }
 
 struct Antenna {
-  let position: Position
+  let position: Positions
   let frequency: Character
 }
 
@@ -28,7 +28,7 @@ struct Day08: AdventDay {
     for (y, line) in lines.enumerated() {
       for (x, char) in line.enumerated() {
         if char != "." {
-          let position = Position(x: x, y: y)
+          let position = Positions(x: x, y: y)
           let antenna = Antenna(position: position, frequency: char)
           antennas.append(antenna)
         }
@@ -40,8 +40,8 @@ struct Day08: AdventDay {
   
   func groupAntennasByFrequency(
     _ antennas: [Antenna]
-  ) -> [Character: [Position]] {
-    var frequencyGroups: [Character: [Position]] = [:]
+  ) -> [Character: [Positions]] {
+    var frequencyGroups: [Character: [Positions]] = [:]
     
     for antenna in antennas {
       if frequencyGroups[antenna.frequency] == nil {
@@ -53,9 +53,9 @@ struct Day08: AdventDay {
   }
   
   func findAntennaPairs(
-    _ frequencyGroups: [Character: [Position]]
-  ) -> [(Position, Position)] {
-    var pairs: [(Position, Position)] = []
+    _ frequencyGroups: [Character: [Positions]]
+  ) -> [(Positions, Positions)] {
+    var pairs: [(Positions, Positions)] = []
     
     for positions in frequencyGroups.values {
       for i in 0..<positions.count {
@@ -69,11 +69,11 @@ struct Day08: AdventDay {
   }
   
   func findAntinodes(
-    _ antennaPairs: [(Position, Position)],
+    _ antennaPairs: [(Positions, Positions)],
     mapWidth: Int,
     mapHeight: Int
-  ) -> Set<Position> {
-    var antinodes: Set<Position> = []
+  ) -> Set<Positions> {
+    var antinodes: Set<Positions> = []
     
     for pair in antennaPairs {
       let a1 = pair.0
@@ -86,7 +86,7 @@ struct Day08: AdventDay {
       
       for x in minX...maxX {
         for y in minY...maxY {
-          let point = Position(x: x, y: y)
+          let point = Positions(x: x, y: y)
           let dist1 = point.distance(to: a1)
           let dist2 = point.distance(to: a2)
           
@@ -127,9 +127,9 @@ struct Day08: AdventDay {
   }
   
   func isCollinear(
-    _ p1: Position,
-    _ p2: Position,
-    _ p3: Position
+    _ p1: Positions,
+    _ p2: Positions,
+    _ p3: Positions
   ) -> Bool {
     let crossProduct = (p2.y - p1.y) * (p3.x - p2.x) -
     (p2.x - p1.x) * (p3.y - p2.y)
@@ -137,12 +137,12 @@ struct Day08: AdventDay {
   }
   
   func findPointsOnLine(
-    _ p1: Position,
-    _ p2: Position,
+    _ p1: Positions,
+    _ p2: Positions,
     mapWidth: Int,
     mapHeight: Int
-  ) -> [Position] {
-    var points: [Position] = []
+  ) -> [Positions] {
+    var points: [Positions] = []
     
     let dx = p2.x - p1.x
     let dy = p2.y - p1.y
@@ -161,7 +161,7 @@ struct Day08: AdventDay {
     var y = p1.y
     
     while x >= 0 && x < mapWidth && y >= 0 && y < mapHeight {
-      points.append(Position(x: x, y: y))
+      points.append(Positions(x: x, y: y))
       x -= stepX
       y -= stepY
     }
@@ -170,7 +170,7 @@ struct Day08: AdventDay {
     y = p1.y + stepY
     
     while x >= 0 && x < mapWidth && y >= 0 && y < mapHeight {
-      points.append(Position(x: x, y: y))
+      points.append(Positions(x: x, y: y))
       x += stepX
       y += stepY
     }
@@ -179,12 +179,12 @@ struct Day08: AdventDay {
   }
   
   func findResonantAntinodes(
-    _ antennaPairs: [(Position, Position)],
+    _ antennaPairs: [(Positions, Positions)],
     mapWidth: Int,
     mapHeight: Int,
-    antennaPositions: Set<Position>
-  ) -> Set<Position> {
-    var antinodes: Set<Position> = []
+    antennaPositions: Set<Positions>
+  ) -> Set<Positions> {
+    var antinodes: Set<Positions> = []
     antinodes = antinodes.union(antennaPositions)
     
     for pair in antennaPairs {
@@ -209,7 +209,7 @@ struct Day08: AdventDay {
     let frequencyGroups = groupAntennasByFrequency(antennas)
     let antennaPairs = findAntennaPairs(frequencyGroups)
     
-    var validAntennaPositions = Set<Position>()
+    var validAntennaPositions = Set<Positions>()
     for (_, positions) in frequencyGroups {
       if positions.count > 1 {
         positions.forEach { validAntennaPositions.insert($0) }
