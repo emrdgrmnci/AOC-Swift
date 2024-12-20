@@ -1,168 +1,117 @@
-struct Position: Hashable {
-  let x: Int
-  let y: Int
-}
+import AoCTools
+import Collections
 
-enum Direction: CaseIterable {
-  case north
-  case east
-  case south
-  case west
+final class Day16: AOCDay {
+  let title = "Reindeer Maze"
+  let grid: [Point: Character]
   
-  var movement: (dx: Int, dy: Int) {
-    switch self {
-    case .north: return (0, -1)
-    case .east:  return (1, 0)
-    case .south: return (0, 1)
-    case .west:  return (-1, 0)
-    }
-  }
-  
-  func rotateClockwise() -> Direction {
-    switch self {
-    case .north: return .east
-    case .east: return .south
-    case .south: return .west
-    case .west: return .north
-    }
-  }
-  
-  func rotateCounterclockwise() -> Direction {
-    switch self {
-    case .north: return .west
-    case .east: return .north
-    case .south: return .east
-    case .west: return .south
-    }
-  }
-}
-
-struct State: Hashable {
-  let position: Position
-  let direction: Direction
-  let score: Int
-}
-
-struct Day16: AdventDay {
-  var data: String
-  
-  typealias Grid = [[Character]]
-  
-  func parseGrid() -> Grid {
-    return data.split(separator: "\n").map { Array($0) }
-  }
-  
-  func dimensions(of grid: Grid) -> (rows: Int, cols: Int) {
-    return (grid.count, grid[0].count)
-  }
-  
-  func isValid(row: Int, col: Int, in grid: Grid) -> Bool {
-    let (rows, cols) = dimensions(of: grid)
-    return row >= 0 && row < rows && col >= 0 && col < cols
-  }
-  
-  func findStart(_ grid: Grid) -> Position? {
-    for (y, row) in grid.enumerated() {
-      for (x, char) in row.enumerated() {
-        if char == "S" {
-          return Position(x: x, y: y)
+  init(input: String) {
+    let points = input.lines
+      .enumerated().flatMap { y, line in
+        line.enumerated().map { x, ch in
+          let p = Point(x, y)
+          return (p, ch)
         }
       }
-    }
-    return nil
+    grid = Dictionary(points, uniquingKeysWith: { _, new in new })
   }
   
-  func findEnd(_ grid: Grid) -> Position? {
-    for (y, row) in grid.enumerated() {
-      for (x, char) in row.enumerated() {
-        if char == "E" {
-          return Position(x: x, y: y)
-        }
-      }
-    }
-    return nil
+  func part1() -> Int {
+    let start = grid.first { $0.value == "S" }!.key
+    let end = grid.first { $0.value == "E" }!.key
+    
+    let paths = findShortestPaths(in: grid, from: start, to: end, allPaths: false)
+    return paths.first?.score ?? 0
   }
   
-  func getNextMoves(from state: State, in grid: Grid) -> [State] {
-    var moves: [State] = []
+  func part2() -> Int {
+    let start = grid.first { $0.value == "S" }!.key
+    let end = grid.first { $0.value == "E" }!.key
     
-    let (dx, dy) = state.direction.movement
-    let newX = state.position.x + dx
-    let newY = state.position.y + dy
+    let paths = findShortestPaths(in: grid, from: start, to: end, allPaths: true)
     
-    if isValid(row: newY, col: newX, in: grid) && grid[newY][newX] != "#" {
-      moves.append(
-        State(
-          position: Position(x: newX, y: newY),
-          direction: state.direction,
-          score: state.score + 1
-        )
-      )
+    var bestSeats: Set<Point> = []
+    let minScore = paths.first?.score ?? 0
+    for path in paths.filter({ $0.score == minScore }) {
+      bestSeats.formUnion(path.path)
     }
     
-    let clockwise = State(
-      position: state.position,
-      direction: state.direction.rotateClockwise(),
-      score: state.score + 1000
-    )
-    
-    let counterClockwise = State(
-      position: state.position,
-      direction: state.direction.rotateCounterclockwise(),
-      score: state.score + 1000
-    )
-    
-    moves.append(clockwise)
-    moves.append(counterClockwise)
-    
-    return moves
+    return bestSeats.count
   }
   
-  func part1() -> Any {
-    let grid = parseGrid()
-    guard let start = findStart(grid),
-          let end = findEnd(grid) else {
-      return 0
+  struct PathStep: Hashable {
+    let point: Point
+    let direction: Direction
+    
+    var forward: PathStep {
+      PathStep(point: point.moved(to: direction), direction: direction)
     }
     
-    // Create initial state (starting east as per requirements)
-    let initialState = State(position: start, direction: .east, score: 0)
+    var clockwise: PathStep {
+      let dir = direction.turned(.clockwise)
+      return PathStep(point: point.moved(to: dir), direction: dir)
+    }
     
-    // Priority queue to store states to explore
-    var queue: [(State, Int)] = [(initialState, 0)]
-    // Keep track of visited states
-    var visited: Set<State> = []
+    var counterclockwise: PathStep {
+      let dir = direction.turned(.counterclockwise)
+      return PathStep(point: point.moved(to: dir), direction: dir)
+    }
+  }
+  
+  struct Node: Comparable {
+    let step: PathStep
+    let score: Int
+    let history: Set<Point>
     
-    while !queue.isEmpty {
-      // Sort by score and get the state with lowest score
-      queue.sort { $0.1 > $1.1 }
-      let (currentState, _) = queue.removeLast()
-      
-      // If we reached the end, return the score
-      if currentState.position.x == end.x && currentState.position.y == end.y {
-        return currentState.score
-      }
-      
-      // Skip if we've visited this state
-      if visited.contains(currentState) {
+    var neighbors: [PathStep] {
+      [step.forward, step.clockwise, step.counterclockwise]
+    }
+    
+    static func < (lhs: Node, rhs: Node) -> Bool {
+      lhs.score < rhs.score
+    }
+  }
+  
+  private func findShortestPaths(in grid: [Point: Character], from start: Point, to end: Point, allPaths: Bool) -> [(path: Set<Point>, score: Int)] {
+    struct ScoreKey: Hashable {
+      let position: Point
+      let direction: Direction
+    }
+    
+    var scores = [
+      PathStep(point: start, direction: .e): 0
+    ]
+    
+    var shortestPaths: [(path: Set<Point>, score: Int)] = []
+    
+    var heap = Heap<Node>()
+    heap.insert(Node(step: PathStep(point: start, direction: .e), score: 0, history: [start]))
+    
+    while let node = heap.popMin() {
+      if node.step.point == end {
+        shortestPaths.append((path: node.history, score: node.score))
         continue
       }
-      visited.insert(currentState)
       
-      // Get next possible moves
-      let nextMoves = getNextMoves(from: currentState, in: grid)
-      for move in nextMoves {
-        if !visited.contains(move) {
-          queue.append((move, move.score))
+      var candidates = [Node]()
+      
+      for neighbor in node.neighbors {
+        if !node.history.contains(neighbor.point), grid[neighbor.point]! != "#" {
+          let add = node.step.direction == neighbor.direction ? 1 : 1001
+          candidates.append(Node(step: neighbor, score: node.score + add, history: node.history.union([neighbor.point])))
+        }
+      }
+      
+      for candidate in candidates {
+        let oldScore = scores[candidate.step]
+        
+        if oldScore == nil || candidate.score < (oldScore! + (allPaths ? 1 : 0)) {
+          scores[candidate.step] = candidate.score
+          heap.insert(candidate)
         }
       }
     }
     
-    return 0
-  }
-  
-  func part2() -> Any {
-    
-    return 0
+    return shortestPaths
   }
 }

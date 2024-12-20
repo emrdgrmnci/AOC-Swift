@@ -1,3 +1,31 @@
+fileprivate struct Point: Hashable, Comparable {
+  let x: Int
+  let y: Int
+  
+  static func < (lhs: Point, rhs: Point) -> Bool {
+    if lhs.y != rhs.y {
+      return lhs.y < rhs.y
+    }
+    return lhs.x < rhs.x
+  }
+  
+  // Get all corners of a cell
+  var corners: [Point] {
+    [
+      self,                            // top-left
+      Point(x: x + 1, y: y),          // top-right
+      Point(x: x, y: y + 1),          // bottom-left
+      Point(x: x + 1, y: y + 1)       // bottom-right
+    ]
+  }
+  
+  func isNeighbor(of other: Point) -> Bool {
+    let dx = abs(x - other.x)
+    let dy = abs(y - other.y)
+    return (dx == 1 && dy == 0) || (dx == 0 && dy == 1)
+  }
+}
+
 struct Day14: AdventDay {
   var data: String
   

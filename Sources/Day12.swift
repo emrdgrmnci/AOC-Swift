@@ -1,6 +1,6 @@
 import Foundation
 
-struct Point: Hashable, Comparable {
+fileprivate struct Point: Hashable, Comparable {
   let x: Int
   let y: Int
   
@@ -29,7 +29,7 @@ struct Point: Hashable, Comparable {
 }
 
 struct Region {
-  var points: Set<Point>
+  fileprivate var points: Set<Point>
   let plantType: Character
   
   var area: Int {
@@ -120,7 +120,7 @@ struct Garden {
     }
   }
   
-  func exploreRegion(from point: Point, region: inout Region, visited: inout Set<Point>) {
+  fileprivate func exploreRegion(from point: Point, region: inout Region, visited: inout Set<Point>) {
     guard point.y >= 0 && point.y < grid.count &&
             point.x >= 0 && point.x < grid[point.y].count &&
             !visited.contains(point) &&

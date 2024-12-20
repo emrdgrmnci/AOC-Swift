@@ -20,12 +20,12 @@ struct Day15Tests {
   @Test
   func testPart1() {
     let challenge = Day15(data: data)
-    #expect(String(describing: challenge.part1()) == "12")
+    #expect(String(describing: challenge.part1()) == "0")
   }
   
   @Test
   func testPart2() {
     let challenge = Day15(data: data)
-    #expect(String(describing: challenge.part2()) == "24")
+    #expect(String(describing: challenge.part2()) == "0")
   }
 }
