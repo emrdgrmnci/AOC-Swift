@@ -1,120 +1,108 @@
+import AoCTools
 import Foundation
+import Collections
 
-class Computer {
-  private var regA: Int
-  private var regB: Int
-  private var regC: Int
-  private var ip: Int  // instruction pointer
-  private var program: [Int]
-  private var output: [Int]
+private final class ChronospatialComputer {
+  let program: [Int]
+  let initialRegisters: [Int]
   
-  init(program: [Int], regA: Int = 0, regB: Int = 0, regC: Int = 0) {
+  init(program: [Int], initialRegisters: [Int]) {
     self.program = program
-    self.regA = regA
-    self.regB = regB
-    self.regC = regC
-    self.ip = 0
-    self.output = []
+    self.initialRegisters = initialRegisters
   }
   
-  private func getComboValue(_ operand: Int) -> Int {
-    switch operand {
-    case 0...3: return operand
-    case 4: return regA
-    case 5: return regB
-    case 6: return regC
-    default: fatalError("Invalid combo operand: \(operand)")
-    }
-  }
-  
-  func run() {
-    while ip < program.count - 1 {  // Need at least 2 numbers for opcode+operand
-      let opcode = program[ip]
-      let operand = program[ip + 1]
-      
-      switch opcode {
-      case 0:  // adv
-        let divisor = Int(pow(2.0, Double(getComboValue(operand))))
-        regA /= divisor
-        ip += 2
-        
-      case 1:  // bxl
-        regB ^= operand
-        ip += 2
-        
-      case 2:  // bst
-        regB = getComboValue(operand) % 8
-        ip += 2
-        
-      case 3:  // jnz
-        if regA != 0 {
-          ip = operand
-        } else {
-          ip += 2
-        }
-        
-      case 4:  // bxc
-        regB ^= regC
-        ip += 2
-        
-      case 5:  // out
-        let value = getComboValue(operand) % 8
-        output.append(value)
-        ip += 2
-        
-      case 6:  // bdv
-        let divisor = Int(pow(2.0, Double(getComboValue(operand))))
-        regB = regA / divisor
-        ip += 2
-        
-      case 7:  // cdv
-        let divisor = Int(pow(2.0, Double(getComboValue(operand))))
-        regC = regA / divisor
-        ip += 2
-        
-      default:
-        fatalError("Invalid opcode: \(opcode)")
+  func run() -> [Int] {
+    var output = [Int]()
+    var instructionPointer = 0
+    var registers = initialRegisters
+    
+    func combo(_ operand: Int) -> Int {
+      switch operand {
+      case 0...3: operand
+      case 4...6: registers[operand - 4]
+      default: fatalError()
       }
     }
+    
+    while instructionPointer < program.count {
+      let opcode = program[instructionPointer]
+      let operand = program[instructionPointer + 1]
+      var nextInstruction = instructionPointer + 2
+      
+      switch opcode {
+      case 0: // adv
+        registers[0] /= pow(2, combo(operand))
+      case 1: // bxl
+        registers[1] ^= operand
+      case 2: // bst
+        registers[1] = combo(operand) % 8
+      case 3: // jnz
+        if registers[0] != 0 {
+          nextInstruction = operand
+        }
+      case 4: // bxc
+        registers[1] ^= registers[2]
+      case 5: // out
+        output.append(combo(operand) % 8)
+      case 6: // bdv
+        registers[1] = registers[0] / pow(2, combo(operand))
+      case 7: // cdv
+        registers[2] = registers[0] / pow(2, combo(operand))
+      default:
+        fatalError()
+      }
+      instructionPointer = nextInstruction
+    }
+    
+    return output
   }
   
-  func getOutputString() -> String {
-    return output.map(String.init).joined(separator: ",")
+  private func pow(_ x: Int, _ y: Int) -> Int {
+    Int(Foundation.pow(Double(x), Double(y)))
   }
 }
 
-struct Day17: AdventDay {
-  var data: String
+final class Day17: AOCDay {
+  let title = "Chronospatial Computer"
   
-  func parseInput() -> [Int] {
-    return data.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespaces)) }
-  }
+  private let cpu: ChronospatialComputer
   
-  func part1() -> Any {
-    let program = parseInput()
-    let computer = Computer(program: program, regA: 729, regB: 0, regC: 0)
-    computer.run()
-    return computer.getOutputString()
-  }
-  
-  func part2() -> Any {
-    let program = parseInput()
-    let target = program.map(String.init).joined(separator: ",")
+  init(input: String) {
+    let lines = input.lines
+    let regA = lines[0].allInts()[0]
+    let regB = lines[1].allInts()[0]
+    let regC = lines[2].allInts()[0]
+    let program = lines[4].allInts()
     
-    // Try values for register A until we find one that outputs the program
-    var a = 1
-    while true {
-      let computer = Computer(program: program, regA: a, regB: 0, regC: 0)
-      computer.run()
-      if computer.getOutputString() == target {
-        return a
-      }
-      a += 1
-      
-      // Sanity check to prevent infinite loop
-      if a > 1_000_000 {
-        return "No solution found"
+    cpu = ChronospatialComputer(program: program, initialRegisters: [regA, regB, regC])
+  }
+  
+  func part1() -> String {
+    cpu.run()
+      .map { "\($0)" }
+      .joined(separator: ",")
+  }
+  
+  func part2() -> Int {
+    let expected = cpu.program
+    
+    var variants = Deque<(regA: Int, digits: Int)>()
+    variants.append((regA: 0, digits: 1))
+    
+    while let (testA, digits) = variants.popFirst() {
+      for i in 0...7 {
+        let nextA = testA << 3 + i
+        let cpu = ChronospatialComputer(program: cpu.program, initialRegisters: [nextA, 0, 0])
+        let output = cpu.run()
+        if output == expected.suffix(digits) {
+          if digits == expected.count {
+            return nextA
+          }
+          variants.append((regA: nextA, digits: digits + 1))
+        }
       }
     }
+    
+    return -1
   }
 }
