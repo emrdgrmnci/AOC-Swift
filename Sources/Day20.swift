@@ -1,202 +1,76 @@
-struct Position: Hashable {
-  let x: Int
-  let y: Int
-  
-  func neighbors() -> [Position] {
-    [
-      Position(x: x, y: y - 1),
-      Position(x: x + 1, y: y),
-      Position(x: x, y: y + 1),
-      Position(x: x - 1, y: y)
-    ]
-  }
-}
+import AoCTools
+import Collections
 
-// Simplified state that only tracks what we really need
-struct State: Hashable {
-  let position: Position
-  let steps: Int
-  let cheating: Bool
-  let cheatStepsLeft: Int
-}
-
-class RaceTrack {
-  let grid: [[Character]]
-  let start: Position
-  let end: Position
-  private var bestPathLength: Int = Int.max
-  private var cheats: [(start: Position, end: Position, saved: Int)] = []
+final class Day20: AOCDay {
+  let title = "Race Condition"
   
-  init(_ input: String) {
-    let lines = input.split(separator: "\n").map(String.init)
-    grid = lines.map { Array($0) }
-    
-    // Find start and end
-    var s = Position(x: 0, y: 0)
-    var e = Position(x: 0, y: 0)
-    for y in 0..<grid.count {
-      for x in 0..<grid[y].count {
-        if grid[y][x] == "S" { s = Position(x: x, y: y) }
-        if grid[y][x] == "E" { e = Position(x: x, y: y) }
-      }
-    }
-    start = s
-    end = e
-  }
+  let grid: [Point: Character]
   
-  private func isValid(_ pos: Position) -> Bool {
-    pos.y >= 0 && pos.y < grid.count && pos.x >= 0 && pos.x < grid[0].count
-  }
-  
-  private func isWall(_ pos: Position) -> Bool {
-    grid[pos.y][pos.x] == "#"
-  }
-  
-  // First find shortest normal path
-  private func findNormalPath() {
-    var queue: [(pos: Position, steps: Int)] = [(start, 0)]
-    var visited = Set<Position>()
-    var index = 0
-    
-    while index < queue.count {
-      let current = queue[index]
-      index += 1
-      
-      if current.pos == end {
-        bestPathLength = min(bestPathLength, current.steps)
-        continue
-      }
-      
-      // Basic pruning - if we've taken more steps than best path, skip
-      if current.steps >= bestPathLength {
-        continue
-      }
-      
-      if visited.contains(current.pos) {
-        continue
-      }
-      visited.insert(current.pos)
-      
-      for next in current.pos.neighbors() {
-        if !isValid(next) || isWall(next) || visited.contains(next) {
-          continue
+  init(input: String) {
+    let points = input.lines
+      .enumerated().flatMap { y, line in
+        line.enumerated().map { x, ch in
+          let p = Point(x, y)
+          return (p, ch)
         }
-        queue.append((next, current.steps + 1))
       }
-    }
+    grid = Dictionary(points, uniquingKeysWith: { _, new in new })
   }
   
-  // Then find all possible cheats
-  private func findCheats() {
-    // We'll search from each valid position
-    for y in 0..<grid.count {
-      for x in 0..<grid[0].count {
-        let pos = Position(x: x, y: y)
-        if isWall(pos) { continue }
-        
-        var queue: [(state: State, cheatStart: Position?)] = [
-          (State(position: pos, steps: 0, cheating: false, cheatStepsLeft: 2), nil)
-        ]
-        var visited = Set<State>()
-        var index = 0
-        
-        while index < queue.count {
-          let current = queue[index]
-          index += 1
-          
-          let state = current.state
-          
-          // Basic pruning
-          if state.steps > bestPathLength {
-            continue
-          }
-          
-          if visited.contains(state) {
-            continue
-          }
-          visited.insert(state)
-          
-          for next in state.position.neighbors() {
-            if !isValid(next) { continue }
-            
-            let isWallTile = isWall(next)
-            
-            // Normal movement
-            if !state.cheating && !isWallTile {
-              queue.append((
-                State(
-                  position: next,
-                  steps: state.steps + 1,
-                  cheating: false,
-                  cheatStepsLeft: 2
-                ),
-                current.cheatStart
-              ))
-              
-              // Start cheating
-              queue.append((
-                State(
-                  position: next,
-                  steps: state.steps + 1,
-                  cheating: true,
-                  cheatStepsLeft: 2
-                ),
-                state.position
-              ))
-            }
-            // Continue cheating
-            else if state.cheating && state.cheatStepsLeft > 0 {
-              // If this is our last cheat step, we must land on a valid tile
-              if state.cheatStepsLeft == 1 && !isWallTile {
-                if let cheatStart = current.cheatStart {
-                  // Calculate time saved
-                  let normalPath = bestPathLength
-                  let cheatPath = state.steps + 1
-                  let saved = normalPath - cheatPath
-                  if saved > 0 {
-                    cheats.append((cheatStart, next, saved))
-                  }
-                }
-              } else if state.cheatStepsLeft > 1 {
-                queue.append((
-                  State(
-                    position: next,
-                    steps: state.steps + 1,
-                    cheating: true,
-                    cheatStepsLeft: state.cheatStepsLeft - 1
-                  ),
-                  current.cheatStart
-                ))
-              }
-            }
-          }
+  func part1() -> Int {
+    part1(minTimeSaved: 100)
+  }
+  
+  func part1(minTimeSaved: Int) -> Int {
+    possibleCheats(minTimeSaved: minTimeSaved, cheatDistance: 2)
+  }
+  
+  func part2() -> Int {
+    part2(minTimeSaved: 100)
+  }
+  
+  func part2(minTimeSaved: Int) -> Int {
+    possibleCheats(minTimeSaved: minTimeSaved, cheatDistance: 20)
+  }
+  
+  private func possibleCheats(minTimeSaved: Int, cheatDistance: Int) -> Int {
+    let start = grid.first { $0.value == "S" }!.key
+    let end = grid.first { $0.value == "E" }!.key
+    var grid = grid
+    grid[start] = "."
+    grid[end] = "."
+    
+    let raceTrack = RaceTrack(grid: grid)
+    let regularPath = raceTrack.shortestPath(from: start, to: end)
+    let fullPath = [start] + regularPath
+    let fullPathDistances = Array(fullPath.enumerated())
+    
+    var timesSaved = [Int: Int]()
+    for (distance, point) in fullPathDistances {
+      // check cheating to any point further along the path that is still within `cheatDistance`
+      let candidates = fullPathDistances[distance...].filter { $0.element.distance(to: point) <= cheatDistance }
+      for candidate in candidates {
+        let d = point.distance(to: candidate.element)
+        if candidate.offset > distance + d {
+          timesSaved[candidate.offset - distance - d, default: 0] += 1
         }
       }
     }
-  }
-  
-  func solve() -> Int {
-    // First find the best normal path
-    findNormalPath()
-    print("Best normal path length:", bestPathLength)
-    
-    // Then find all possible cheats
-    findCheats()
-    
-    // Count cheats that save >= 100 steps
-    return cheats.filter { $0.saved >= 100 }.count
+    return timesSaved
+      .filter { $0.key >= minTimeSaved }
+      .reduce(0) { $0 + $1.value }
   }
 }
 
-struct Day20: AdventDay {
-  var data: String
+struct RaceTrack: Pathfinding {
+  let grid: [Point: Character]
   
-  func part1() -> Any {
-    let track = RaceTrack(data)
-    return track.solve()
+  func shortestPath(from start: Point, to end: Point) -> [Point] {
+    let pathfinder = AStarPathfinder(map: self)
+    return pathfinder.shortestPath(from: start, to: end)
   }
   
-  func part2() -> Any {
-    return 0 // Part 2 not implemented
+  func neighbors(of point: Point) -> [Point] {
+    point.neighbors().filter { grid[$0] != "#" }
   }
 }
